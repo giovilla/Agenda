@@ -1,0 +1,1201 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Special+Elite&family=Lato:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f5f0e8;
+    --paper-dark: #ede6d3;
+    --ink: #2c2416;
+    --ink-light: #6b5f4a;
+    --red: #c0392b;
+    --red-light: #e74c3c;
+    --blue-line: #c8d8e8;
+    --gold: #b8960c;
+    --shadow: rgba(0,0,0,0.18);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #2a1f14;
+    background-image: 
+      radial-gradient(ellipse at 20% 50%, #3d2b1a 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 20%, #1a1208 0%, transparent 50%);
+    min-height: 100vh;
+    font-family: 'Lato', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+
+  /* HEADER */
+  .app-title {
+    font-family: 'Playfair Display', serif;
+    color: #d4b896;
+    font-size: 2rem;
+    letter-spacing: 0.15em;
+    margin-bottom: 18px;
+    text-align: center;
+    opacity: 0.9;
+  }
+  .app-title span { font-style: italic; color: #c0392b; }
+
+  /* CONTROLLI NAVIGAZIONE */
+  .nav-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .nav-btn {
+    background: #3d2b1a;
+    color: #d4b896;
+    border: 1px solid #6b5040;
+    padding: 7px 16px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: 'Lato', sans-serif;
+    font-size: 0.85rem;
+    letter-spacing: 0.05em;
+    transition: background 0.2s, color 0.2s;
+  }
+  .nav-btn:hover { background: #c0392b; color: #fff; border-color: #c0392b; }
+  .nav-btn.today-btn { background: #c0392b; color: #fff; border-color: #c0392b; }
+  .nav-btn.today-btn:hover { background: #a93226; }
+
+  .date-label {
+    font-family: 'Playfair Display', serif;
+    color: #d4b896;
+    font-size: 1.15rem;
+    min-width: 200px;
+    text-align: center;
+    cursor: pointer;
+    padding: 4px 10px;
+    border-radius: 3px;
+    transition: background 0.2s;
+  }
+  .date-label:hover { background: rgba(192,57,43,0.15); }
+
+  #date-picker-input {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+  }
+
+  /* AGENDA BOOK wrapper per 3D */
+  .book-scene {
+    width: 100%;
+    max-width: 720px;
+    perspective: 1400px;
+    position: relative;
+  }
+
+  /* Frecce sfoglio laterali */
+  .page-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    width: 42px;
+    height: 70px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.25s;
+    border-radius: 4px;
+  }
+  .book-scene:hover .page-arrow { opacity: 1; }
+  .page-arrow:hover { opacity: 1 !important; }
+  .page-arrow.left  { left: -50px; }
+  .page-arrow.right { right: -50px; }
+  @media(max-width: 860px) {
+    .page-arrow.left  { left: 4px; background: rgba(42,31,20,0.65); }
+    .page-arrow.right { right: 4px; background: rgba(42,31,20,0.65); }
+    .book-scene:hover .page-arrow,
+    .page-arrow { opacity: 0.85; }
+  }
+  .page-arrow svg {
+    width: 28px; height: 28px;
+    fill: none; stroke: #d4b896;
+    stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
+    filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
+    transition: stroke 0.15s;
+  }
+  .page-arrow:hover svg { stroke: #c0392b; }
+
+  /* Il libro vero */
+  .agenda-book {
+    width: 100%;
+    background: var(--paper);
+    border-radius: 2px 6px 6px 2px;
+    box-shadow:
+      -4px 0 8px rgba(0,0,0,0.3),
+      0 4px 30px var(--shadow),
+      inset -2px 0 6px rgba(0,0,0,0.06);
+    position: relative;
+    min-height: 560px;
+    transform-origin: left center;
+    will-change: transform, opacity;
+  }
+
+  /* Animazioni sfoglio */
+  @keyframes flipForward {
+    0%   { transform: rotateY(0deg) translateX(0);     opacity: 1; }
+    35%  { transform: rotateY(-22deg) translateX(-8px); opacity: 0.6; }
+    100% { transform: rotateY(0deg) translateX(0);     opacity: 1; }
+  }
+  @keyframes flipBackward {
+    0%   { transform: rotateY(0deg) translateX(0);    opacity: 1; }
+    35%  { transform: rotateY(12deg) translateX(6px); opacity: 0.6; }
+    100% { transform: rotateY(0deg) translateX(0);    opacity: 1; }
+  }
+  @keyframes fadeSwap {
+    0%,100% { opacity: 1; }
+    40%,60% { opacity: 0; }
+  }
+
+  .agenda-book.flip-forward  { animation: flipForward  0.48s cubic-bezier(.4,0,.2,1), fadeSwap 0.48s linear; }
+  .agenda-book.flip-backward { animation: flipBackward 0.48s cubic-bezier(.4,0,.2,1), fadeSwap 0.48s linear; }
+
+  /* Ombra pagina sx */
+  .agenda-book::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: linear-gradient(to right, rgba(0,0,0,0.07) 0%, transparent 25%);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  /* Pagine sotto (spessore libro) */
+  .book-stack::before,
+  .book-stack::after {
+    content: '';
+    position: absolute;
+    background: var(--paper-dark);
+    border-radius: 2px 6px 6px 2px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+  }
+  .book-stack { position: absolute; inset: 0; z-index: -1; }
+  .book-stack::before { inset: 3px -3px -3px 3px; opacity: 0.7; }
+  .book-stack::after  { inset: 6px -6px -6px 6px; opacity: 0.4; }
+
+  /* Copertina in alto */
+  .page-header {
+    background: var(--paper-dark);
+    border-bottom: 2px solid #c8b89a;
+    padding: 18px 28px 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 2px 6px 0 0;
+  }
+
+  .day-name {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    color: var(--ink);
+    text-transform: capitalize;
+  }
+  .day-name em { color: var(--red); font-style: normal; }
+
+  .full-date {
+    font-family: 'Special Elite', cursive;
+    color: var(--ink-light);
+    font-size: 0.95rem;
+    text-align: right;
+  }
+
+  /* Margine rosso laterale */
+  .page-body {
+    position: relative;
+    padding: 0 28px 28px 72px;
+  }
+  .margin-line {
+    position: absolute;
+    left: 56px;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    background: rgba(192,57,43,0.35);
+  }
+
+  /* Righe */
+  .line-container {
+    padding-top: 8px;
+  }
+
+  .agenda-line {
+    display: flex;
+    align-items: flex-start;
+    border-bottom: 1px solid var(--blue-line);
+    min-height: 40px;
+    position: relative;
+    gap: 8px;
+  }
+
+  .line-number {
+    position: absolute;
+    left: -44px;
+    top: 10px;
+    font-size: 0.65rem;
+    color: #b0a090;
+    width: 28px;
+    text-align: right;
+    font-family: 'Lato', sans-serif;
+  }
+
+  .appt-toggle {
+    flex-shrink: 0;
+    width: 18px;
+    height: 18px;
+    margin-top: 11px;
+    cursor: pointer;
+    accent-color: var(--red);
+    margin-right: 2px;
+  }
+
+  .line-input {
+    flex: 1;
+    border: none;
+    background: transparent;
+    font-family: 'Special Elite', cursive;
+    font-size: 0.95rem;
+    color: var(--ink);
+    padding: 10px 4px 4px;
+    resize: none;
+    outline: none;
+    line-height: 1.5;
+    min-height: 38px;
+    width: 100%;
+  }
+  .line-input::placeholder { color: #ccc0ac; font-style: italic; }
+  .line-input.is-appointment {
+    color: var(--red);
+    font-weight: bold;
+  }
+
+  /* Etichetta appuntamento */
+  .appt-badge {
+    flex-shrink: 0;
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    color: #fff;
+    background: var(--red);
+    border-radius: 2px;
+    padding: 2px 5px;
+    margin-top: 13px;
+    text-transform: uppercase;
+    font-family: 'Lato', sans-serif;
+    display: none;
+  }
+  .is-appointment ~ .appt-badge,
+  .agenda-line.has-appt .appt-badge { display: inline-block; }
+
+  /* Ora per appuntamento */
+  .appt-time {
+    flex-shrink: 0;
+    font-family: 'Special Elite', cursive;
+    font-size: 0.8rem;
+    color: var(--red);
+    margin-top: 12px;
+    display: none;
+    cursor: pointer;
+    border-bottom: 1px dashed var(--red);
+  }
+  .agenda-line.has-appt .appt-time { display: inline; }
+
+  /* BOTTOM BAR */
+  .page-footer {
+    border-top: 1px solid #c8b89a;
+    padding: 10px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--paper-dark);
+    border-radius: 0 0 6px 6px;
+  }
+  .footer-note {
+    font-family: 'Special Elite', cursive;
+    font-size: 0.75rem;
+    color: var(--ink-light);
+  }
+
+  /* BOTTONE APPUNTAMENTI */
+  .appt-view-btn {
+    background: transparent;
+    color: var(--red);
+    border: 1px solid var(--red);
+    padding: 6px 14px;
+    font-family: 'Lato', sans-serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.2s;
+  }
+  .appt-view-btn:hover { background: var(--red); color: #fff; }
+
+  /* MODAL APPUNTAMENTI */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(20,12,5,0.75);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--paper);
+    max-width: 640px;
+    width: 100%;
+    max-height: 80vh;
+    border-radius: 3px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+    display: flex;
+    flex-direction: column;
+    animation: modalIn 0.2s ease;
+  }
+  @keyframes modalIn {
+    from { transform: translateY(20px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+  }
+
+  .modal-header {
+    background: var(--paper-dark);
+    padding: 16px 22px;
+    border-bottom: 2px solid #c8b89a;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-radius: 3px 3px 0 0;
+  }
+  .modal-title {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.25rem;
+    color: var(--ink);
+  }
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 1.4rem;
+    color: var(--ink-light);
+    cursor: pointer;
+    line-height: 1;
+  }
+  .modal-close:hover { color: var(--red); }
+
+  .modal-filters {
+    padding: 12px 22px;
+    border-bottom: 1px solid #ddd;
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .filter-btn {
+    padding: 5px 14px;
+    border: 1px solid #c8b89a;
+    background: transparent;
+    color: var(--ink-light);
+    font-family: 'Lato', sans-serif;
+    font-size: 0.8rem;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: all 0.15s;
+  }
+  .filter-btn.active, .filter-btn:hover { background: var(--red); color: #fff; border-color: var(--red); }
+
+  .modal-body {
+    overflow-y: auto;
+    flex: 1;
+    padding: 16px 22px;
+  }
+
+  .appt-item {
+    display: flex;
+    gap: 14px;
+    align-items: flex-start;
+    padding: 10px 0;
+    border-bottom: 1px solid #e0d8cc;
+  }
+  .appt-item:last-child { border-bottom: none; }
+
+  .appt-date-col {
+    flex-shrink: 0;
+    width: 80px;
+    text-align: center;
+  }
+  .appt-day-num {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.8rem;
+    color: var(--red);
+    line-height: 1;
+  }
+  .appt-month-name {
+    font-family: 'Lato', sans-serif;
+    font-size: 0.7rem;
+    color: var(--ink-light);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+  .appt-dow {
+    font-family: 'Special Elite', cursive;
+    font-size: 0.75rem;
+    color: var(--ink-light);
+    text-transform: capitalize;
+  }
+
+  .appt-content-col { flex: 1; }
+  .appt-text {
+    font-family: 'Special Elite', cursive;
+    font-size: 0.95rem;
+    color: var(--ink);
+  }
+  .appt-time-label {
+    font-size: 0.75rem;
+    color: var(--red);
+    font-family: 'Lato', sans-serif;
+    margin-top: 2px;
+  }
+
+  .empty-msg {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    color: var(--ink-light);
+    text-align: center;
+    padding: 30px 0;
+    font-size: 1rem;
+  }
+
+  /* TIME MODAL */
+  .time-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .time-modal-overlay.open { display: flex; }
+  .time-modal {
+    background: var(--paper);
+    padding: 24px;
+    border-radius: 4px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    min-width: 260px;
+    text-align: center;
+  }
+  .time-modal h3 {
+    font-family: 'Playfair Display', serif;
+    margin-bottom: 14px;
+    color: var(--ink);
+  }
+  .time-modal input[type="time"] {
+    font-family: 'Special Elite', cursive;
+    font-size: 1.4rem;
+    color: var(--red);
+    border: 1px solid #c8b89a;
+    background: var(--paper-dark);
+    padding: 8px 14px;
+    border-radius: 3px;
+    outline: none;
+    width: 100%;
+    margin-bottom: 14px;
+  }
+  .time-modal-btns { display: flex; gap: 10px; justify-content: center; }
+  .time-modal-btns button {
+    padding: 7px 20px;
+    border: 1px solid #c8b89a;
+    background: transparent;
+    cursor: pointer;
+    font-family: 'Lato', sans-serif;
+    border-radius: 3px;
+    color: var(--ink);
+    transition: all 0.15s;
+  }
+  .time-modal-btns button.confirm { background: var(--red); color: #fff; border-color: var(--red); }
+  .time-modal-btns button:hover:not(.confirm) { background: var(--paper-dark); }
+
+  .reminder-section { margin-bottom: 14px; text-align: left; }
+  .reminder-label {
+    display: block;
+    font-family: 'Lato', sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-light);
+    margin-bottom: 8px;
+  }
+  .reminder-options { display: flex; flex-wrap: wrap; gap: 6px; }
+  .rem-btn {
+    padding: 5px 11px;
+    border: 1px solid #c8b89a;
+    background: transparent;
+    color: var(--ink-light);
+    font-family: 'Lato', sans-serif;
+    font-size: 0.78rem;
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .rem-btn:hover { border-color: var(--red); color: var(--red); }
+  .rem-btn.active { background: var(--red); color: #fff; border-color: var(--red); }
+
+  /* Pulsante microfono */
+  .mic-btn {
+    flex-shrink: 0; width: 24px; height: 24px; margin-top: 8px;
+    background: none; border: none; cursor: pointer; padding: 0;
+    opacity: 0.25; transition: opacity 0.2s, transform 0.15s;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mic-btn:hover { opacity: 0.65; }
+  .mic-btn.listening { opacity: 1; animation: micPulse 0.7s ease-in-out infinite alternate; }
+  .mic-btn svg { width: 14px; height: 14px; fill: var(--ink); }
+  .mic-btn.listening svg { fill: var(--red); }
+  @keyframes micPulse { from { transform: scale(1); } to { transform: scale(1.4); } }
+
+  /* Toast allarme appuntamento */
+  .alarm-toast {
+    position: fixed; top: 20px; left: 50%;
+    transform: translateX(-50%) translateY(-140px);
+    background: #2c2416; border: 2px solid var(--red); color: var(--paper);
+    border-radius: 6px; padding: 14px 20px 14px 16px; z-index: 999;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.55);
+    display: flex; align-items: flex-start; gap: 12px;
+    max-width: 380px; width: calc(100vw - 40px);
+    transition: transform 0.4s cubic-bezier(.2,1.3,.5,1); cursor: pointer;
+  }
+  .alarm-toast.show { transform: translateX(-50%) translateY(0); }
+  .alarm-toast-icon { font-size: 1.5rem; flex-shrink: 0; margin-top: 2px; }
+  .alarm-toast-body { flex: 1; }
+  .alarm-toast-title { font-family: 'Playfair Display', serif; font-size: 0.8rem; color: var(--red); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 3px; }
+  .alarm-toast-text { font-family: 'Special Elite', cursive; font-size: 0.98rem; color: var(--paper); line-height: 1.4; }
+  .alarm-toast-time { font-family: 'Lato', sans-serif; font-size: 0.72rem; color: #a09080; margin-top: 3px; }
+  .alarm-toast-close {
+    flex-shrink: 0;
+    background: var(--red);
+    color: #fff;
+    border: none;
+    border-radius: 3px;
+    padding: 5px 10px;
+    font-family: 'Lato', sans-serif;
+    font-size: 0.75rem;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    align-self: center;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .alarm-toast-close:hover { background: #a93226; }
+
+  /* Responsive */
+  @media(max-width: 500px) {
+    .page-body { padding-left: 50px; }
+    .margin-line { left: 38px; }
+    .line-number { left: -32px; }
+    .app-title { font-size: 1.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<h1 class="app-title">La mia <span>Agenda</span></h1>
+
+<div class="nav-bar">
+  <button class="nav-btn" onclick="changeDay(-1)">◂</button>
+  <span class="date-label" onclick="openDatePicker()" title="Clicca per scegliere una data" id="date-label">—</span>
+  <input type="date" id="date-picker-input" onchange="onDatePicked()">
+  <button class="nav-btn" onclick="changeDay(1)">▸</button>
+  <button class="nav-btn today-btn" onclick="goToday()">Oggi</button>
+</div>
+
+<div class="book-scene">
+  <div class="page-arrow left" onclick="changeDay(-1)" title="Giorno precedente">
+    <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+  </div>
+  <div class="page-arrow right" onclick="changeDay(1)" title="Giorno successivo">
+    <svg viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></svg>
+  </div>
+  <div class="book-stack"></div>
+  <div class="agenda-book" id="agenda-book">
+    <div class="page-header">
+      <div class="day-name" id="day-name">—</div>
+      <div class="full-date" id="full-date">—</div>
+    </div>
+    <div class="page-body">
+      <div class="margin-line"></div>
+      <div class="line-container" id="line-container"></div>
+    </div>
+    <div class="page-footer">
+      <span class="footer-note" id="footer-note">Agenda personale</span>
+      <button class="appt-view-btn" onclick="openApptModal()">📅 Appuntamenti</button>
+    </div>
+  </div>
+</div>
+
+<!-- ALARM TOAST -->
+<div class="alarm-toast" id="alarm-toast" onclick="dismissAlarm()">
+  <div class="alarm-toast-icon">🔔</div>
+  <div class="alarm-toast-body">
+    <div class="alarm-toast-title">Appuntamento</div>
+    <div class="alarm-toast-text" id="alarm-toast-text">—</div>
+    <div class="alarm-toast-time" id="alarm-toast-time">—</div>
+  </div>
+  <div class="alarm-toast-close" onclick="dismissAlarm()">Tacita</div>
+</div>
+
+<!-- MODAL APPUNTAMENTI -->
+<div class="modal-overlay" id="appt-modal">
+  <div class="modal">
+    <div class="modal-header">
+      <span class="modal-title">Appuntamenti futuri</span>
+      <button class="modal-close" onclick="closeApptModal()">×</button>
+    </div>
+    <div class="modal-filters">
+      <button class="filter-btn active" onclick="setFilter('week',this)">Questa settimana</button>
+      <button class="filter-btn" onclick="setFilter('month',this)">Questo mese</button>
+      <button class="filter-btn" onclick="setFilter('year',this)">Quest'anno</button>
+      <button class="filter-btn" onclick="setFilter('all',this)">Tutti</button>
+    </div>
+    <div class="modal-body" id="appt-list"></div>
+  </div>
+</div>
+
+<!-- TIME PICKER MODAL -->
+<div class="time-modal-overlay" id="time-modal">
+  <div class="time-modal">
+    <h3>Orario appuntamento</h3>
+    <input type="time" id="time-input" value="09:00">
+    <div class="reminder-section">
+      <label class="reminder-label">🔔 Promemoria</label>
+      <div class="reminder-options" id="reminder-options">
+        <button class="rem-btn" data-min="0">All'ora</button>
+        <button class="rem-btn active" data-min="10">10 min prima</button>
+        <button class="rem-btn" data-min="30">30 min prima</button>
+        <button class="rem-btn" data-min="60">1 ora prima</button>
+        <button class="rem-btn" data-min="1440">Il giorno prima</button>
+        <button class="rem-btn" data-min="-1">Nessuno</button>
+      </div>
+    </div>
+    <div class="time-modal-btns">
+      <button onclick="closeTimeModal(false)">Annulla</button>
+      <button class="confirm" onclick="closeTimeModal(true)">Conferma</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const STORAGE_KEY = 'agenda_v1';
+const NUM_LINES = 18;
+const MONTHS = ['gennaio','febbraio','marzo','aprile','maggio','giugno','luglio','agosto','settembre','ottobre','novembre','dicembre'];
+const DAYS = ['domenica','lunedì','martedì','mercoledì','giovedì','venerdì','sabato'];
+const MONTHS_SHORT = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+
+let currentDate = new Date();
+currentDate.setHours(0,0,0,0);
+
+let data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+let apptFilter = 'week';
+let timeModalCallback = null;
+
+function dateKey(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function saveCurrentPage() {
+  const key = dateKey(currentDate);
+  if (!data[key]) data[key] = { lines: [], appts: {} };
+  const lines = [];
+  for (let i = 0; i < NUM_LINES; i++) {
+    const inp = document.querySelector(`[data-line="${i}"]`);
+    const chk = document.querySelector(`[data-appt="${i}"]`);
+    const timeEl = document.querySelector(`[data-time="${i}"]`);
+    lines.push({
+      text: inp ? inp.value : '',
+      isAppt: chk ? chk.checked : false,
+      time: timeEl ? timeEl.dataset.value || '' : '',
+      reminder: timeEl ? (timeEl.dataset.reminder ?? '10') : '10'
+    });
+  }
+  data[key].lines = lines;
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function renderPage(animate = true) {
+  const key = dateKey(currentDate);
+  const pageData = data[key] || { lines: [] };
+
+  // Header
+  const dow = DAYS[currentDate.getDay()];
+  const dayNum = currentDate.getDate();
+  const mon = MONTHS[currentDate.getMonth()];
+  const year = currentDate.getFullYear();
+  document.getElementById('day-name').innerHTML = `<em>${dayNum}</em> ${dow}`;
+  document.getElementById('full-date').textContent = `${mon} ${year}`;
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const diff = Math.round((currentDate - today) / 86400000);
+  let note = 'Agenda personale';
+  if (diff === 0) note = '— oggi —';
+  else if (diff === -1) note = '— ieri —';
+  else if (diff === 1) note = '— domani —';
+  else if (diff < 0) note = `${Math.abs(diff)} giorni fa`;
+  else note = `fra ${diff} giorni`;
+  document.getElementById('footer-note').textContent = note;
+
+  // Date label nav
+  document.getElementById('date-label').textContent =
+    `${dayNum} ${MONTHS_SHORT[currentDate.getMonth()]} ${year}`;
+
+  // Lines
+  const container = document.getElementById('line-container');
+  container.innerHTML = '';
+
+  for (let i = 0; i < NUM_LINES; i++) {
+    const ld = pageData.lines[i] || { text: '', isAppt: false, time: '' };
+    const div = document.createElement('div');
+    div.className = 'agenda-line' + (ld.isAppt ? ' has-appt' : '');
+
+    div.innerHTML = `
+      <span class="line-number">${i+1}</span>
+      <input type="checkbox" class="appt-toggle" data-appt="${i}" ${ld.isAppt ? 'checked' : ''} title="Segna come appuntamento">
+      <textarea class="line-input${ld.isAppt ? ' is-appointment' : ''}" data-line="${i}" placeholder="${i===0 ? 'Scrivi qui...' : ''}" rows="1">${ld.text}</textarea>
+      <button class="mic-btn" data-mic="${i}" title="Dettatura vocale">
+        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <rect x="9" y="2" width="6" height="11" rx="3"/>
+          <path d="M5 10a7 7 0 0 0 14 0" stroke="currentColor" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+          <line x1="12" y1="17" x2="12" y2="21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+          <line x1="9" y1="21" x2="15" y2="21" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+        </svg>
+      </button>
+      <span class="appt-time" data-time="${i}" data-value="${ld.time || ''}" data-reminder="${ld.reminder ?? '10'}">${ld.time || '+ ora'}</span>
+      <span class="appt-badge">appt.</span>
+    `;
+    container.appendChild(div);
+
+    const chk = div.querySelector(`[data-appt="${i}"]`);
+    const inp = div.querySelector(`[data-line="${i}"]`);
+    const timeEl = div.querySelector(`[data-time="${i}"]`);
+
+    // Mic dettatura
+    const micBtn = div.querySelector(`[data-mic="${i}"]`);
+    micBtn.addEventListener('click', () => startDictation(i, micBtn, inp));
+
+    // Auto-resize textarea
+    inp.addEventListener('input', () => {
+      inp.style.height = 'auto';
+      inp.style.height = inp.scrollHeight + 'px';
+      saveCurrentPage();
+    });
+    inp.style.height = 'auto';
+    inp.style.height = Math.max(38, inp.scrollHeight) + 'px';
+
+    chk.addEventListener('change', () => {
+      div.classList.toggle('has-appt', chk.checked);
+      inp.classList.toggle('is-appointment', chk.checked);
+      if (chk.checked) {
+        openTimeModal((val, rem) => {
+          timeEl.dataset.value = val;
+          timeEl.dataset.reminder = rem;
+          timeEl.textContent = val || '+ ora';
+          saveCurrentPage();
+        });
+      } else {
+        timeEl.dataset.value = '';
+        timeEl.dataset.reminder = '10';
+        timeEl.textContent = '+ ora';
+        saveCurrentPage();
+      }
+    });
+
+    timeEl.addEventListener('click', () => {
+      if (!chk.checked) return;
+      openTimeModal((val, rem) => {
+        timeEl.dataset.value = val;
+        timeEl.dataset.reminder = rem;
+        timeEl.textContent = val || '+ ora';
+        saveCurrentPage();
+      }, timeEl.dataset.value, timeEl.dataset.reminder);
+    });
+  }
+
+  // (animation handled by flipPage)
+}
+
+function flipPage(delta) {
+  saveCurrentPage();
+  const book = document.getElementById('agenda-book');
+  const cls = delta > 0 ? 'flip-forward' : 'flip-backward';
+  book.classList.remove('flip-forward', 'flip-backward');
+  // force reflow
+  void book.offsetWidth;
+  // update content at midpoint (when page is "turned away")
+  currentDate = new Date(currentDate.getTime() + delta * 86400000);
+  setTimeout(() => renderPage(false), 230);
+  book.classList.add(cls);
+  setTimeout(() => book.classList.remove(cls), 500);
+}
+
+function changeDay(delta) {
+  flipPage(delta);
+}
+
+function goToday() {
+  saveCurrentPage();
+  const today = new Date(); today.setHours(0,0,0,0);
+  const delta = Math.sign(today - currentDate) || 1;
+  currentDate = today;
+  const book = document.getElementById('agenda-book');
+  const cls = delta > 0 ? 'flip-forward' : 'flip-backward';
+  book.classList.remove('flip-forward','flip-backward');
+  void book.offsetWidth;
+  setTimeout(() => renderPage(false), 230);
+  book.classList.add(cls);
+  setTimeout(() => book.classList.remove(cls), 500);
+}
+
+function openDatePicker() {
+  const inp = document.getElementById('date-picker-input');
+  inp.value = dateKey(currentDate);
+  inp.showPicker ? inp.showPicker() : inp.click();
+}
+
+function onDatePicked() {
+  const val = document.getElementById('date-picker-input').value;
+  if (!val) return;
+  saveCurrentPage();
+  const [y,m,d] = val.split('-').map(Number);
+  const newDate = new Date(y, m-1, d);
+  const delta = newDate > currentDate ? 1 : -1;
+  currentDate = newDate;
+  const book = document.getElementById('agenda-book');
+  const cls = delta > 0 ? 'flip-forward' : 'flip-backward';
+  book.classList.remove('flip-forward','flip-backward');
+  void book.offsetWidth;
+  setTimeout(() => renderPage(false), 230);
+  book.classList.add(cls);
+  setTimeout(() => book.classList.remove(cls), 500);
+}
+
+// Touch swipe
+(function() {
+  let startX = 0, startY = 0, swiping = false;
+  const book = () => document.getElementById('agenda-book');
+  document.addEventListener('touchstart', e => {
+    if (document.getElementById('appt-modal').classList.contains('open')) return;
+    if (document.getElementById('time-modal').classList.contains('open')) return;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    swiping = true;
+  }, { passive: true });
+  document.addEventListener('touchend', e => {
+    if (!swiping) return;
+    swiping = false;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    if (Math.abs(dx) < 40 || Math.abs(dy) > Math.abs(dx)) return;
+    flipPage(dx < 0 ? 1 : -1);
+  }, { passive: true });
+})();
+
+// APPUNTAMENTI MODAL
+function openApptModal() {
+  saveCurrentPage();
+  document.getElementById('appt-modal').classList.add('open');
+  renderApptList();
+}
+function closeApptModal() {
+  document.getElementById('appt-modal').classList.remove('open');
+}
+
+function setFilter(f, btn) {
+  apptFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderApptList();
+}
+
+function renderApptList() {
+  const today = new Date(); today.setHours(0,0,0,0);
+
+  // Calcola range
+  let rangeEnd = null;
+  if (apptFilter === 'week') {
+    rangeEnd = new Date(today); rangeEnd.setDate(today.getDate() + 7);
+  } else if (apptFilter === 'month') {
+    rangeEnd = new Date(today.getFullYear(), today.getMonth() + 1, today.getDate());
+  } else if (apptFilter === 'year') {
+    rangeEnd = new Date(today.getFullYear(), 11, 31);
+  }
+
+  const appts = [];
+  for (const [key, val] of Object.entries(data)) {
+    if (!val.lines) continue;
+    const [ky, km, kd] = key.split('-').map(Number);
+    const d = new Date(ky, km - 1, kd);
+    if (d < today) continue;
+    if (rangeEnd && d > rangeEnd) continue;
+
+    val.lines.forEach((l, i) => {
+      if (l.isAppt && l.text.trim()) {
+        appts.push({ date: d, text: l.text, time: l.time || '' });
+      }
+    });
+  }
+
+  appts.sort((a,b) => {
+    if (a.date - b.date !== 0) return a.date - b.date;
+    return (a.time || '99:99').localeCompare(b.time || '99:99');
+  });
+
+  const container = document.getElementById('appt-list');
+  if (appts.length === 0) {
+    container.innerHTML = '<p class="empty-msg">Nessun appuntamento trovato</p>';
+    return;
+  }
+
+  container.innerHTML = appts.map(a => {
+    const dow = DAYS[a.date.getDay()];
+    const mon = MONTHS_SHORT[a.date.getMonth()];
+    return `
+      <div class="appt-item">
+        <div class="appt-date-col">
+          <div class="appt-day-num">${a.date.getDate()}</div>
+          <div class="appt-month-name">${mon}</div>
+          <div class="appt-dow">${dow}</div>
+        </div>
+        <div class="appt-content-col">
+          <div class="appt-text">${escHtml(a.text)}</div>
+          ${a.time ? `<div class="appt-time-label">🕐 ${a.time}</div>` : ''}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// TIME MODAL
+function openTimeModal(cb, currentTime, currentReminder) {
+  timeModalCallback = cb;
+  document.getElementById('time-input').value = currentTime || '09:00';
+
+  // Imposta reminder attivo
+  const activeRem = currentReminder !== undefined ? String(currentReminder) : '10';
+  document.querySelectorAll('.rem-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.min === activeRem);
+    b.onclick = () => {
+      document.querySelectorAll('.rem-btn').forEach(x => x.classList.remove('active'));
+      b.classList.add('active');
+    };
+  });
+
+  document.getElementById('time-modal').classList.add('open');
+}
+
+function closeTimeModal(confirm) {
+  document.getElementById('time-modal').classList.remove('open');
+  if (confirm && timeModalCallback) {
+    const timeVal = document.getElementById('time-input').value;
+    const activeBtn = document.querySelector('.rem-btn.active');
+    const remVal = activeBtn ? activeBtn.dataset.min : '10';
+    timeModalCallback(timeVal, remVal);
+  } else if (!confirm && timeModalCallback) {
+    timeModalCallback('', '10');
+  }
+  timeModalCallback = null;
+}
+
+// Close modals on overlay click
+document.getElementById('appt-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('appt-modal')) closeApptModal();
+});
+
+// Keyboard navigation
+document.addEventListener('keydown', e => {
+  if (document.getElementById('appt-modal').classList.contains('open')) return;
+  if (document.getElementById('time-modal').classList.contains('open')) return;
+  if (e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT') return;
+  if (e.key === 'ArrowLeft') changeDay(-1);
+  if (e.key === 'ArrowRight') changeDay(1);
+  if (e.key === 'Home') goToday();
+});
+
+// ── DETTATURA VOCALE (App Inventor bridge) ───────────────────────
+// App Inventor chiama: window.AppInventor.setWebViewString(testo)
+// Noi esponiamo: Android.startSpeech() che AI chiama via WebViewString
+
+function startDictation(lineIndex, btn, textarea) {
+  // Salva riferimento alla riga attiva
+  window._dictLineIndex = lineIndex;
+  window._dictBtn = btn;
+  window._dictTextarea = textarea;
+  btn.classList.add('listening');
+
+  // Segnala ad App Inventor tramite WebViewString (metodo ufficiale AI2)
+  if (window.AppInventor) {
+    window.AppInventor.setWebViewString("SPEECH:");
+  } else {
+    // Fallback browser: SpeechRecognition standard
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) {
+      btn.classList.remove('listening');
+      alert('Microfono non disponibile in questo browser.');
+      return;
+    }
+    const rec = new SR();
+    rec.lang = 'it-IT';
+    rec.continuous = false;
+    rec.interimResults = false;
+    rec.onresult = e => {
+      const text = e.results[0][0].transcript;
+      receiveSpeechResult(text);
+    };
+    rec.onend = () => btn.classList.remove('listening');
+    rec.onerror = () => btn.classList.remove('listening');
+    rec.start();
+  }
+}
+
+// Chiamata da App Inventor quando il riconoscimento è completato
+// App Inventor esegue: WebViewer.WebViewString = "SPEECH:testo riconosciuto"
+function receiveSpeechResult(text) {
+  const btn = window._dictBtn;
+  const ta  = window._dictTextarea;
+  if (btn) btn.classList.remove('listening');
+  if (!ta || !text) return;
+  const sep = ta.value.trim() ? ' ' : '';
+  ta.value += sep + text;
+  ta.style.height = 'auto';
+  ta.style.height = ta.scrollHeight + 'px';
+  saveCurrentPage();
+  window._dictBtn = null;
+  window._dictTextarea = null;
+}
+
+// App Inventor ascolta i cambiamenti di WebViewString e chiama questa
+window.addEventListener('message', e => {
+  if (typeof e.data === 'string' && e.data.startsWith('SPEECH:')) {
+    receiveSpeechResult(e.data.slice(7));
+  }
+});
+
+// ── ALLARME APPUNTAMENTI (App Inventor bridge) ───────────────────
+const firedAlarms = new Set();
+let alarmInterval = null;
+
+function playAlarmSound() {
+  stopAlarmSound();
+  if (window.AppInventor) {
+    // App Inventor gestisce il suono nativo
+    window.AppInventor.setWebViewString("ALARM_PLAY:");
+  } else {
+    // Fallback browser: AudioContext
+    try {
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtx) return;
+      const ctx = new AudioCtx();
+      function ding() {
+        [0, 0.35, 0.7].forEach((delay, i) => {
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.frequency.value = 880 + i * 110;
+          osc.type = 'sine';
+          gain.gain.setValueAtTime(0, ctx.currentTime + delay);
+          gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + delay + 0.05);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.6);
+          osc.start(ctx.currentTime + delay);
+          osc.stop(ctx.currentTime + delay + 0.65);
+        });
+      }
+      ding();
+      alarmInterval = setInterval(ding, 4000);
+    } catch(e) {}
+  }
+}
+
+function stopAlarmSound() {
+  if (alarmInterval) { clearInterval(alarmInterval); alarmInterval = null; }
+  if (window.AppInventor) window.AppInventor.setWebViewString("ALARM_STOP:");
+}
+
+function dismissAlarm() {
+  stopAlarmSound();
+  document.getElementById('alarm-toast').classList.remove('show');
+}
+
+function showAlarmToast(text, timeStr, dateStr) {
+  document.getElementById('alarm-toast-text').textContent = text;
+  document.getElementById('alarm-toast-time').textContent = dateStr + (timeStr ? ' · ore ' + timeStr : '');
+  document.getElementById('alarm-toast').classList.add('show');
+  playAlarmSound();
+}
+
+function checkAlarms() {
+  const now = new Date();
+  const hhmm = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+
+  for (const [key, val] of Object.entries(data)) {
+    if (!val.lines) continue;
+    const [ky, km, kd] = key.split('-').map(Number);
+    const apptDate = new Date(ky, km-1, kd);
+
+    val.lines.forEach((l, idx) => {
+      if (!l.isAppt || !l.text.trim() || !l.time) return;
+      const reminderMin = parseInt(l.reminder ?? '10', 10);
+      if (reminderMin === -1) return;
+
+      const [apptH, apptM] = l.time.split(':').map(Number);
+      const alarmMoment = new Date(ky, km-1, kd, apptH, apptM - reminderMin);
+      const alarmHHMM = String(alarmMoment.getHours()).padStart(2,'0') + ':' + String(alarmMoment.getMinutes()).padStart(2,'0');
+      const alarmDateKey = dateKey(alarmMoment);
+      const todayKey = dateKey(now);
+
+      if (alarmDateKey !== todayKey) return;
+      if (alarmHHMM !== hhmm) return;
+
+      const alarmId = key + '|' + l.time + '|' + idx;
+      if (firedAlarms.has(alarmId)) return;
+      firedAlarms.add(alarmId);
+
+      const dateLabel = key === todayKey ? 'oggi' : `${apptDate.getDate()} ${MONTHS_SHORT[apptDate.getMonth()]}`;
+      const reminderLabel = reminderMin === 0 ? '' : reminderMin === 1440
+        ? ' (promemoria: il giorno prima)'
+        : ` (promemoria: ${reminderMin} min prima)`;
+      showAlarmToast(l.text, l.time, dateLabel + reminderLabel);
+    });
+  }
+}
+
+setInterval(checkAlarms, 30000);
+setTimeout(checkAlarms, 1500);
+
+// ── Init ──────────────────────────────────────────────────────────
+renderPage();
+</script>
+</body>
+</html>
