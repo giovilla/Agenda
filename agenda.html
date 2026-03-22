@@ -646,6 +646,7 @@
     </div>
     <div class="page-footer">
       <span class="footer-note" id="footer-note">Agenda personale</span>
+      <button class="appt-view-btn" onclick="testSound()" style="margin-right:8px">🔔 Test</button>
       <button class="appt-view-btn" onclick="openApptModal()">📅 Appuntamenti</button>
     </div>
   </div>
@@ -1176,7 +1177,13 @@ function showAlarmToast(text, timeStr, dateStr) {
   playAlarmSound();
 }
 
-function checkAlarms() {
+function testSound() {
+  unlockAudio();
+  playAlarmSound();
+  setTimeout(stopAlarmSound, 5000);
+}
+
+
   const now = new Date();
   const hhmm = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
 
