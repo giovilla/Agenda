@@ -1103,39 +1103,60 @@ window.addEventListener('message', e => {
   }
 });
 
-// ── ALLARME APPUNTAMENTI (App Inventor bridge) ───────────────────
+// ── ALLARME APPUNTAMENTI ─────────────────────────────────────────
 const firedAlarms = new Set();
 let alarmInterval = null;
+let audioUnlocked = false;
+
+// Audio context sbloccato al primo tocco utente (necessario su Chrome mobile)
+const AudioCtx = window.AudioContext || window.webkitAudioContext;
+let audioCtx = null;
+
+function unlockAudio() {
+  if (audioUnlocked) return;
+  try {
+    audioCtx = new AudioCtx();
+    // Suono silenzioso per sbloccare il contesto
+    const buf = audioCtx.createBuffer(1, 1, 22050);
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    src.connect(audioCtx.destination);
+    src.start(0);
+    audioUnlocked = true;
+  } catch(e) {}
+}
+
+// Sblocca audio al primo tocco ovunque sulla pagina
+document.addEventListener('touchstart', unlockAudio, { once: true });
+document.addEventListener('click', unlockAudio, { once: true });
 
 function playAlarmSound() {
   stopAlarmSound();
   if (window.AppInventor) {
-    // App Inventor gestisce il suono nativo
     window.AppInventor.setWebViewString("ALARM_PLAY:");
-  } else {
-    // Fallback browser: AudioContext
+    return;
+  }
+  // Chrome mobile: usa AudioContext (sbloccato dal primo tocco)
+  function ding() {
     try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (!AudioCtx) return;
-      const ctx = new AudioCtx();
-      function ding() {
-        [0, 0.35, 0.7].forEach((delay, i) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-          osc.connect(gain); gain.connect(ctx.destination);
-          osc.frequency.value = 880 + i * 110;
-          osc.type = 'sine';
-          gain.gain.setValueAtTime(0, ctx.currentTime + delay);
-          gain.gain.linearRampToValueAtTime(0.3, ctx.currentTime + delay + 0.05);
-          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.6);
-          osc.start(ctx.currentTime + delay);
-          osc.stop(ctx.currentTime + delay + 0.65);
-        });
-      }
-      ding();
-      alarmInterval = setInterval(ding, 4000);
+      if (!audioCtx) audioCtx = new AudioCtx();
+      if (audioCtx.state === 'suspended') audioCtx.resume();
+      [0, 0.35, 0.7].forEach((delay, i) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.frequency.value = 880 + i * 110;
+        osc.type = 'sine';
+        gain.gain.setValueAtTime(0, audioCtx.currentTime + delay);
+        gain.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + delay + 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + delay + 0.8);
+        osc.start(audioCtx.currentTime + delay);
+        osc.stop(audioCtx.currentTime + delay + 0.85);
+      });
     } catch(e) {}
   }
+  ding();
+  alarmInterval = setInterval(ding, 4000);
 }
 
 function stopAlarmSound() {
